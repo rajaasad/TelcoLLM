@@ -1,0 +1,1755 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelcoLLM - Telecommunication AI Study Assistant</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for vivid tech icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Geist/Inter-style modern fonts) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- PDF.js library CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+        // Set workerSrc for PDF.js globally
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+
+    <!-- Marked.js for clean Markdown parsing and KaTeX for beautiful math formulas -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                    },
+                    colors: {
+                        telcoDarkBg: '#0b0f19',
+                        telcoCardBg: '#131b2e',
+                        telcoBorder: '#1e294b',
+                        accentNeonCyan: '#06b6d4',
+                        accentNeonPurple: '#a855f7',
+                        accentNeonPink: '#ec4899',
+                        accentNeonOrange: '#f97316',
+                        accentNeonGreen: '#10b981',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e294b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #06b6d4;
+        }
+        .vivid-glow:hover {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+        }
+        /* Custom typography styling for rendered Markdown and List content */
+        .chat-message-content ul, #modal-body-content ul {
+            list-style-type: disc;
+            margin-left: 1.25rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .chat-message-content ol, #modal-body-content ol {
+            list-style-type: decimal;
+            margin-left: 1.25rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .chat-message-content li, #modal-body-content li {
+            margin-top: 0.25rem;
+        }
+        .chat-message-content p, #modal-body-content p {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-telcoDarkBg text-slate-100 font-sans h-full flex flex-col overflow-hidden">
+
+    <!-- TOP HEADER BAR -->
+    <header class="bg-telcoCardBg/80 backdrop-blur-md border-b border-telcoBorder px-4 py-3 flex items-center justify-between z-10">
+        <!-- Brand / Identity -->
+        <div class="flex items-center space-x-3">
+            <div class="p-2 bg-gradient-to-tr from-accentNeonCyan to-accentNeonPurple rounded-xl shadow-lg shadow-cyan-500/20">
+                <i class="fa-solid fa-satellite-dish text-xl text-white animate-pulse"></i>
+            </div>
+            <div>
+                <h1 class="font-display font-bold text-lg leading-tight bg-gradient-to-r from-accentNeonCyan to-accentNeonPurple bg-clip-text text-transparent">
+                    TelcoLLM
+                </h1>
+                <p id="app-tagline" class="text-xs text-slate-400 font-medium">
+                    AI Assistant for Telecommunication Study & Research
+                </p>
+            </div>
+        </div>
+
+        <!-- Language Selector -->
+        <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-language text-accentNeonCyan text-lg"></i>
+            <select id="lang-select" onchange="switchLanguage(this.value)" class="bg-telcoDarkBg border border-telcoBorder rounded-lg px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-accentNeonCyan transition">
+                <option value="en" selected>English</option>
+                <option value="hi">हिन्दी (Hindi)</option>
+                <option value="ar">العربية (Arabic)</option>
+                <option value="ur">اردو (Urdu)</option>
+                <option value="fr">Français (French)</option>
+                <option value="es">Español (Spanish)</option>
+                <option value="de">Deutsch (German)</option>
+                <option value="ja">日本語 (Japanese)</option>
+                <option value="zh">中文 (Chinese)</option>
+            </select>
+        </div>
+
+        <!-- API Key and Controls -->
+        <div class="flex items-center space-x-3">
+            <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                    <i class="fa-solid fa-key text-xs text-accentNeonCyan"></i>
+                </span>
+                <input type="password" id="gemini-key" placeholder="Enter Gemini API Key..." 
+                    class="bg-telcoDarkBg border border-telcoBorder rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-accentNeonCyan focus:ring-1 focus:ring-accentNeonCyan w-56 transition placeholder-slate-500">
+            </div>
+            <button onclick="saveApiKey()" class="bg-gradient-to-r from-accentNeonCyan to-accentNeonPurple hover:brightness-110 text-white font-medium text-xs px-3 py-1.5 rounded-lg transition shadow-md shadow-purple-500/10 flex items-center gap-1.5">
+                <i class="fa-solid fa-circle-check"></i>
+                <span id="btn-save">Save</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN APP WRAPPER -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- LEFT SIDEBAR: Sources, PDF Upload, User Guide -->
+        <aside class="w-80 bg-telcoCardBg/50 border-r border-telcoBorder flex flex-col justify-between shrink-0 overflow-hidden">
+            <!-- Sources Area -->
+            <div class="p-4 flex-1 flex flex-col overflow-hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 id="title-sources" class="font-display font-semibold text-sm tracking-wider uppercase text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-folder-open text-accentNeonCyan"></i> Sources
+                    </h2>
+                    <span id="sources-count" class="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full">0</span>
+                </div>
+
+                <!-- File Drag and Drop/Click Zone -->
+                <div id="drop-zone" class="border-2 border-dashed border-telcoBorder hover:border-accentNeonCyan/60 rounded-xl p-4 text-center cursor-pointer transition mb-4 group bg-telcoDarkBg/40">
+                    <input type="file" id="pdf-file-input" accept="application/pdf" class="hidden" multiple onchange="handleFileSelect(event)">
+                    <div class="flex flex-col items-center">
+                        <div class="p-3 bg-slate-800/50 rounded-lg mb-2 group-hover:bg-accentNeonCyan/10 transition">
+                            <i class="fa-solid fa-cloud-arrow-up text-accentNeonCyan text-xl"></i>
+                        </div>
+                        <p id="label-upload" class="text-xs font-semibold text-slate-300">Upload PDF Study Material</p>
+                        <p class="text-[10px] text-slate-500 mt-1">Satellite, Mobile, IP Networks, etc.</p>
+                    </div>
+                </div>
+
+                <!-- PDF upload status container -->
+                <div id="upload-status-container" class="space-y-2 mb-4 hidden">
+                    <div class="bg-telcoDarkBg border border-telcoBorder rounded-lg p-2 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-circle-notch animate-spin text-accentNeonCyan"></i>
+                            <span id="status-text" class="text-xs text-slate-300">Loading document...</span>
+                        </div>
+                        <span id="status-percent" class="text-[10px] font-semibold text-accentNeonCyan">0%</span>
+                    </div>
+                </div>
+
+                <!-- Sources List (Empty State / Loaded Items) -->
+                <div class="flex-1 overflow-y-auto space-y-2 relative">
+                    <!-- Default state message if no files are loaded (Kept as sibling to list container) -->
+                    <div id="no-sources-msg" class="text-center py-8 text-slate-500 flex flex-col items-center justify-center">
+                        <i class="fa-solid fa-file-pdf text-3xl mb-2 opacity-30"></i>
+                        <p id="msg-no-sources" class="text-xs">No research PDFs uploaded yet.</p>
+                    </div>
+                    <!-- Empty list container for dynamically generated source list items -->
+                    <div id="sources-list-container" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- Bottom Left: Interactive User Guide -->
+            <div class="p-4 border-t border-telcoBorder bg-telcoDarkBg/60">
+                <h3 id="title-guide" class="text-xs font-bold text-accentNeonPurple uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-info"></i> How to use TelcoLLM
+                </h3>
+                <ul id="guide-list" class="space-y-2 text-[11px] text-slate-400">
+                    <li class="flex items-start gap-2">
+                        <span class="text-accentNeonCyan font-bold">1.</span>
+                        <span>Upload reference papers, textbook chapters, satellite manuals, or cellular standards.</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-accentNeonCyan font-bold">2.</span>
+                        <span>Paste your <strong>Gemini API Key</strong> in the top header.</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-accentNeonCyan font-bold">3.</span>
+                        <span>Select any uploaded file in the list to inspect it instantly in the center view.</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-accentNeonCyan font-bold">4.</span>
+                        <span>Ask questions in the chat sidebar, or press study options for automatic high-level assistance!</span>
+                    </li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- CENTER VIEWPORT: Modern PDF Rendering Engine & Interactive Panel -->
+        <main class="flex-1 flex flex-col bg-telcoDarkBg overflow-hidden relative">
+            <!-- PDF Control Bar -->
+            <div class="h-12 bg-telcoCardBg/30 border-b border-telcoBorder px-4 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-file-invoice text-accentNeonCyan"></i>
+                    <span id="pdf-view-title" class="text-xs font-semibold text-slate-300 truncate max-w-xs md:max-w-sm">No Document Selected</span>
+                </div>
+                <div id="pdf-navigation" class="flex items-center space-x-3 hidden">
+                    <button onclick="prevPage()" class="p-1.5 rounded-md hover:bg-slate-800 text-slate-300 transition">
+                        <i class="fa-solid fa-chevron-left text-xs"></i>
+                    </button>
+                    <span class="text-xs text-slate-400 font-mono">
+                        <span id="page-num">0</span> / <span id="page-count">0</span>
+                    </span>
+                    <button onclick="nextPage()" class="p-1.5 rounded-md hover:bg-slate-800 text-slate-300 transition">
+                        <i class="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
+                    <div class="h-4 w-[1px] bg-slate-800"></div>
+                    <button onclick="zoomIn()" class="p-1.5 rounded-md hover:bg-slate-800 text-slate-300 transition">
+                        <i class="fa-solid fa-magnifying-glass-plus text-xs"></i>
+                    </button>
+                    <button onclick="zoomOut()" class="p-1.5 rounded-md hover:bg-slate-800 text-slate-300 transition">
+                        <i class="fa-solid fa-magnifying-glass-minus text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- PDF Viewer Workspace -->
+            <div class="flex-1 overflow-y-auto p-4 flex justify-center items-start bg-slate-950/80 relative" id="pdf-render-canvas-container">
+                <!-- Welcome/Instructional splash shown when no PDF is uploaded -->
+                <div id="viewer-empty-splash" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10">
+                    <div class="mb-4 text-accentNeonCyan/20">
+                        <i class="fa-solid fa-satellite text-7xl animate-pulse"></i>
+                    </div>
+                    <h3 id="splash-title" class="text-lg font-display font-semibold text-slate-200 mb-2">Telecommunication Library Portal</h3>
+                    <p id="splash-sub" class="text-xs text-slate-400 max-w-md">
+                        Upload or select a PDF study material. The document will load page-by-page directly here, powered by advanced vector rendering.
+                    </p>
+                    <button onclick="triggerFileInput()" class="mt-4 px-4 py-2 bg-gradient-to-r from-accentNeonCyan to-accentNeonPurple text-white rounded-lg text-xs font-bold transition hover:opacity-90 flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span id="btn-browse">Browse PDF File</span>
+                    </button>
+                </div>
+
+                <!-- Live rendering viewport wrapper -->
+                <div class="hidden flex-col items-center" id="pdf-view-pane">
+                    <!-- Standard Canvas Node for rendering -->
+                    <div class="relative shadow-2xl rounded-lg overflow-hidden border border-slate-700 bg-white">
+                        <canvas id="pdf-canvas" class="max-w-full"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- RIGHT SIDEBAR: Action Panel, Study Materials generator and AI Assistant -->
+        <aside class="w-96 bg-telcoCardBg/50 border-l border-telcoBorder flex flex-col overflow-hidden shrink-0">
+            <!-- Study Options Header & Row -->
+            <div class="p-4 border-b border-telcoBorder">
+                <div class="mb-3">
+                    <h3 id="title-study-options" class="font-display font-semibold text-sm tracking-wider uppercase text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles text-accentNeonPurple"></i> Study Material Actions
+                    </h3>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                    <button onclick="triggerStudyAction('audio')" class="p-2 rounded-lg bg-telcoDarkBg border border-telcoBorder hover:border-accentNeonCyan hover:scale-[1.02] transition text-slate-300 flex flex-col items-center gap-1.5 group">
+                        <i class="fa-solid fa-headphones-simple text-accentNeonCyan text-base group-hover:animate-bounce"></i>
+                        <span id="opt-audio">Audio Guide</span>
+                    </button>
+                    <button onclick="triggerStudyAction('slides')" class="p-2 rounded-lg bg-telcoDarkBg border border-telcoBorder hover:border-accentNeonPurple hover:scale-[1.02] transition text-slate-300 flex flex-col items-center gap-1.5 group">
+                        <i class="fa-solid fa-file-powerpoint text-accentNeonPurple text-base group-hover:animate-bounce"></i>
+                        <span id="opt-slides">Slides Outline</span>
+                    </button>
+                    <button onclick="triggerStudyAction('summary')" class="p-2 rounded-lg bg-telcoDarkBg border border-telcoBorder hover:border-accentNeonPink hover:scale-[1.02] transition text-slate-300 flex flex-col items-center gap-1.5 group">
+                        <i class="fa-solid fa-list-check text-accentNeonPink text-base group-hover:animate-bounce"></i>
+                        <span id="opt-summary">Summary</span>
+                    </button>
+                    <button onclick="triggerStudyAction('quiz')" class="p-2 rounded-lg bg-telcoDarkBg border border-telcoBorder hover:border-accentNeonOrange hover:scale-[1.02] transition text-slate-300 flex flex-col items-center gap-1.5 group">
+                        <i class="fa-solid fa-circle-question text-accentNeonOrange text-base group-hover:animate-bounce"></i>
+                        <span id="opt-quiz">Interactive Quiz</span>
+                    </button>
+                    <button onclick="triggerStudyAction('mindmap')" class="p-2 rounded-lg bg-telcoDarkBg border border-telcoBorder hover:border-accentNeonGreen hover:scale-[1.02] transition text-slate-300 flex flex-col items-center gap-1.5 group">
+                        <i class="fa-solid fa-network-wired text-accentNeonGreen text-base group-hover:animate-bounce"></i>
+                        <span id="opt-mindmap">Mind Map</span>
+                    </button>
+                    <button onclick="triggerStudyAction('flashcards')" class="p-2 rounded-lg bg-telcoDarkBg border border-telcoBorder hover:border-yellow-400 hover:scale-[1.02] transition text-slate-300 flex flex-col items-center gap-1.5 group">
+                        <i class="fa-solid fa-tags text-yellow-400 text-base group-hover:animate-bounce"></i>
+                        <span id="opt-flashcards">Flashcards</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat workspace -->
+            <div class="flex-1 flex flex-col overflow-hidden">
+                <!-- Chat Window Header -->
+                <div class="px-4 py-2 border-b border-telcoBorder/40 bg-slate-900/30 flex justify-between items-center text-xs">
+                    <span id="title-chat-header" class="text-slate-400 font-semibold tracking-wide uppercase">AI Scholar Discussion Panel</span>
+                    <button onclick="clearChat()" class="text-slate-500 hover:text-red-400 transition" title="Clear Chat History">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+
+                <!-- Chat history area -->
+                <div id="chat-messages-box" class="flex-1 overflow-y-auto p-4 space-y-3">
+                    <!-- Default System Welcome message -->
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-accentNeonCyan to-accentNeonPurple flex items-center justify-center text-white shrink-0 shadow-lg">
+                            <i class="fa-solid fa-robot text-xs"></i>
+                        </div>
+                        <div class="bg-telcoCardBg border border-telcoBorder rounded-xl p-3 max-w-[85%]">
+                            <div id="chat-welcome-msg" class="text-xs text-slate-200 leading-relaxed">
+                                Hello! I am your <strong>TelcoLLM Study Scholar</strong>. Load your textbook chapters, IEEE telecom journals, and standards in the sources pane, then ask questions or ask me to generate materials.
+                            </div>
+                            <span class="text-[9px] text-slate-500 mt-1 block">TelcoLLM Expert Agent</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading element/thinking bubble -->
+                <div id="ai-thinking-element" class="hidden px-4 py-2 flex items-center space-x-2 bg-telcoCardBg/20 border-t border-telcoBorder/30">
+                    <div class="flex space-x-1">
+                        <span class="block w-2 h-2 rounded-full bg-accentNeonCyan animate-bounce" style="animation-delay: 0.1s"></span>
+                        <span class="block w-2 h-2 rounded-full bg-accentNeonPurple animate-bounce" style="animation-delay: 0.2s"></span>
+                        <span class="block w-2 h-2 rounded-full bg-accentNeonPink animate-bounce" style="animation-delay: 0.3s"></span>
+                    </div>
+                    <span id="agent-thinking-text" class="text-[10px] text-slate-400 tracking-wider">TelcoLLM is processing context...</span>
+                </div>
+
+                <!-- Live Audio Output Control Drawer -->
+                <div id="audio-output-drawer" class="hidden px-4 py-3 bg-slate-900 border-t border-telcoBorder flex flex-col gap-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <span id="audio-drawer-status" class="text-accentNeonCyan font-semibold flex items-center gap-1.5">
+                            <i class="fa-solid fa-volume-high animate-pulse"></i> Generating Audio Broadcast...
+                        </span>
+                        <button onclick="closeAudioDrawer()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <!-- API generated file player -->
+                    <audio id="audio-player" controls class="w-full h-8 mt-1"></audio>
+                    <!-- Local Fallback Speech Controls -->
+                    <div id="fallback-tts-controls" class="hidden flex items-center gap-2 mt-1">
+                        <button onclick="pauseSpeech()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1 rounded text-xs flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-pause text-accentNeonCyan"></i> Pause
+                        </button>
+                        <button onclick="resumeSpeech()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1 rounded text-xs flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-play text-accentNeonPurple"></i> Resume
+                        </button>
+                        <button onclick="stopSpeech()" class="bg-red-950/40 hover:bg-red-950 text-red-400 border border-red-900/60 px-3 py-1 rounded text-xs flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-stop"></i> Stop
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chat form area -->
+                <form id="chat-form" onsubmit="handleChatSubmit(event)" class="p-3 border-t border-telcoBorder bg-telcoCardBg/70 flex items-center gap-2">
+                    <input type="text" id="chat-input" placeholder="Ask about Satellite payloads, 5G Beamforming..." 
+                        class="flex-1 bg-telcoDarkBg border border-telcoBorder rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:border-accentNeonCyan transition placeholder-slate-500">
+                    <button type="submit" class="bg-gradient-to-tr from-accentNeonCyan to-accentNeonPurple text-white p-2.5 rounded-xl hover:brightness-110 shadow-lg shadow-cyan-500/10 flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-paper-plane text-xs"></i>
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- NOTIFICATION OR MESSAGE POPUP BANNER -->
+    <div id="message-toast" class="fixed bottom-6 right-6 z-50 transform translate-y-12 opacity-0 transition duration-300 pointer-events-none bg-telcoCardBg border-2 border-accentNeonCyan text-slate-100 rounded-xl shadow-2xl p-4 flex items-center gap-3 max-w-sm">
+        <div id="toast-icon" class="p-2 bg-accentNeonCyan/10 text-accentNeonCyan rounded-lg text-lg">
+            <i class="fa-solid fa-bell"></i>
+        </div>
+        <div>
+            <h4 id="toast-title" class="font-bold text-xs">Notification</h4>
+            <p id="toast-body" class="text-[11px] text-slate-300 mt-0.5">Placeholder system announcement.</p>
+        </div>
+    </div>
+
+    <!-- MODAL POPUP FOR MULTI-FUNCTION ASSISTANCE (Slides, Mindmaps, Quiz, Flashcards, etc.) -->
+    <div id="study-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-telcoCardBg border border-telcoBorder rounded-2xl max-w-2xl w-full mx-4 overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+            <!-- Header -->
+            <div class="p-4 border-b border-telcoBorder bg-slate-900/50 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div id="modal-icon-container" class="p-2 bg-accentNeonCyan/10 text-accentNeonCyan rounded-lg">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    </div>
+                    <h3 id="modal-title" class="font-display font-semibold text-sm text-slate-200">Generated Study Companion</h3>
+                </div>
+                <button onclick="toggleModal(false)" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div id="modal-body-content" class="p-6 overflow-y-auto flex-1 text-slate-200 space-y-4">
+                <!-- Will be dynamically filled -->
+            </div>
+
+            <!-- Footer options -->
+            <div class="p-4 border-t border-telcoBorder bg-slate-900/30 flex items-center justify-between">
+                <button onclick="copyModalContent()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg flex items-center gap-2 transition">
+                    <i class="fa-solid fa-copy"></i> <span id="btn-copy">Copy to Clipboard</span>
+                </button>
+                <button onclick="toggleModal(false)" class="text-xs bg-gradient-to-r from-accentNeonCyan to-accentNeonPurple text-white px-5 py-2 rounded-lg font-bold transition hover:opacity-90">
+                    <span id="btn-close">Done</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INTERNAL APP JAVASCRIPT STATE LOGIC AND SYSTEM INTEGRATIONS -->
+    <script>
+        // Multi-lingual Translation Matrix
+        const dictionary = {
+            en: {
+                appTagline: "AI Assistant for Telecommunication Study and Research",
+                save: "Save",
+                sources: "Sources",
+                uploadPDF: "Upload PDF Study Material",
+                uploadStatus: "Loading document...",
+                noSources: "No research PDFs uploaded yet.",
+                howToUse: "How to use TelcoLLM",
+                step1: "Upload reference papers, textbook chapters, satellite manuals, or cellular standards.",
+                step2: "Paste your Gemini API Key in the top header.",
+                step3: "Select any uploaded file in the list to inspect it instantly in the center view.",
+                step4: "Ask questions in the chat sidebar, or press study options for automatic high-level assistance!",
+                noDocSelected: "No Document Selected",
+                studyActions: "Study Material Actions",
+                optAudio: "Audio Guide",
+                optSlides: "Slides Outline",
+                optSummary: "Summary",
+                optQuiz: "Interactive Quiz",
+                optMindmap: "Mind Map",
+                optFlashcards: "Flashcards",
+                chatHeader: "AI Scholar Discussion Panel",
+                chatWelcome: "Hello! I am your TelcoLLM Study Scholar. Load your textbook chapters, IEEE telecom journals, and standards in the sources pane, then ask questions or ask me to generate materials.",
+                thinkingText: "TelcoLLM is processing context...",
+                browsePdf: "Browse PDF File",
+                portalTitle: "Telecommunication Library Portal",
+                portalSub: "Upload or select a PDF study material. The document will load page-by-page directly here, powered by advanced vector rendering.",
+                enterApiKeyFirst: "Please enter your Gemini API Key first!",
+                uploadPdfFirst: "Please upload at least one PDF source first!",
+                generatingPrompt: "Generating study companion now...",
+                generatingAudio: "Generating Audio Overview...",
+                unsupportedAudio: "Audio generation requires speech synthesis parameters.",
+                audioReady: "Audio Overview is ready! Check the audio player.",
+                copyText: "Copy to Clipboard",
+                closeText: "Done",
+                copySuccess: "Copied to Clipboard!",
+                apiSaved: "API Key Saved Successfully!",
+                thinkingChat: "Analyzing with Telecommunication models...",
+                noDocsUploadedYet: "You have not uploaded any PDF documents yet. Please drag, drop, or select files under the Sources pane."
+            },
+            hi: {
+                appTagline: "दूरसंचार अध्ययन और अनुसंधान के लिए एआई सहायक",
+                save: "सहेजें",
+                sources: "स्रोत",
+                uploadPDF: "पीडीएफ अध्ययन सामग्री अपलोड करें",
+                uploadStatus: "दस्तावेज़ लोड हो रहा है...",
+                noSources: "अभी तक कोई शोध पीडीएफ अपलोड नहीं किया गया है।",
+                howToUse: "टेल्कोएलएलएम (TelcoLLM) का उपयोग कैसे करें",
+                step1: "संदर्भ पत्र, पाठ्यपुस्तक के अध्याय, उपग्रह मैनुअल, या सेलुलर मानक अपलोड करें।",
+                step2: "शीर्ष हेडर में अपनी जेमिनी (Gemini) एपीआई कुंजी दर्ज करें।",
+                step3: "केंद्र दृश्य में तुरंत निरीक्षण करने के लिए सूची में किसी भी अपलोड की गई फ़ाइल का चयन करें।",
+                step4: "चैट साइडबार में प्रश्न पूछें, या स्वचालित उच्च-स्तरीय सहायता के लिए अध्ययन विकल्पों को दबाएं!",
+                noDocSelected: "कोई दस्तावेज़ चयनित नहीं है",
+                studyActions: "अध्ययन सामग्री क्रियाएं",
+                optAudio: "ऑडियो गाइड",
+                optSlides: "स्लाइड रूपरेखा",
+                optSummary: "सारांश",
+                optQuiz: "इंटरैक्टिव प्रश्नोत्तरी",
+                optMindmap: "माइंड मैप",
+                optFlashcards: "फ्लैशकार्ड",
+                chatHeader: "एआई विद्वान चर्चा पैनल",
+                chatWelcome: "नमस्ते! मैं आपका टेल्कोएलएलएम अध्ययन विद्वान हूं। स्रोत फलक में अपने पाठ्यपुस्तक अध्याय, आईईईई दूरसंचार जर्नल और मानकों को लोड करें, फिर प्रश्न पूछें या मुझसे सामग्री उत्पन्न करने के लिए कहें।",
+                thinkingText: "टेल्कोएलएलएम संदर्भ संसाधित कर रहा है...",
+                browsePdf: "पीडीएफ फाइल चुनें",
+                portalTitle: "दूरसंचार पुस्तकालय पोर्टल",
+                portalSub: "एक पीडीएफ अध्ययन सामग्री अपलोड या चयन करें। दस्तावेज़ को यहाँ उन्नत वेक्टर रेंडरिंग द्वारा पृष्ठ-दर-पृष्ठ लोड किया जाएगा।",
+                enterApiKeyFirst: "कृपया पहले अपनी जेमिनी एपीआई कुंजी दर्ज करें!",
+                uploadPdfFirst: "कृपया पहले कम से कम एक पीडीएफ स्रोत अपलोड करें!",
+                generatingPrompt: "अध्ययन सामग्री तैयार की जा रही है...",
+                generatingAudio: "ऑडियो अवलोकन तैयार किया जा रहा है...",
+                unsupportedAudio: "ऑडियो उत्पादन के लिए स्पीच सिंथेसिस मापदंडों की आवश्यकता है।",
+                audioReady: "ऑडियो अवलोकन तैयार है! ऑडियो प्लेयर की जाँच करें।",
+                copyText: "क्लिपबोर्ड पर कॉपी करें",
+                closeText: "पूर्ण",
+                copySuccess: "क्लिपबोर्ड पर कॉपी किया गया!",
+                apiSaved: "API कुंजी सफलतापूर्वक सहेजी गई!",
+                thinkingChat: "दूरसंचार मॉडल के साथ विश्लेषण किया जा रहा है...",
+                noDocsUploadedYet: "आपने अभी तक कोई पीडीएफ दस्तावेज़ अपलोड नहीं किया है। कृपया स्रोत फलक के तहत फ़ाइलों को ड्रैग, ड्रॉप या सिलेक्ट करें।"
+            },
+            ar: {
+                appTagline: "مساعد الذكاء الاصطناعي للدراسات والبحوث في مجال الاتصالات",
+                save: "حفظ",
+                sources: "المصادر",
+                uploadPDF: "تحميل مواد دراسية بصيغة PDF",
+                uploadStatus: "جاري تحميل المستند...",
+                noSources: "لم يتم تحميل أي ملفات PDF للبحث بعد.",
+                howToUse: "كيفية استخدام TelcoLLM",
+                step1: "قم بتحميل الأوراق المرجعية، فصول الكتب، أدلة الأقمار الصناعية، أو معايير شبكات المحمول.",
+                step2: "ألصق مفتاح Gemini API الخاص بك في الجزء العلوي.",
+                step3: "اختر أي ملف تم تحميله من القائمة لعرضه فورًا في الجزء الأوسط.",
+                step4: "اطرح الأسئلة في شريط الدردشة الجانبي، أو اضغط على خيارات الدراسة للحصول على مساعدة ذكية!",
+                noDocSelected: "لم يتم تحديد مستند",
+                studyActions: "إجراءات المواد الدراسية",
+                optAudio: "الدليل الصوتي",
+                optSlides: "مخطط الشرائح",
+                optSummary: "ملخص للمحتوى",
+                optQuiz: "اختبار تفاعلي",
+                optMindmap: "خريطة ذهنية",
+                optFlashcards: "بطاقات تعليمية",
+                chatHeader: "لوحة مناقشة الأكاديميين بالذكاء الاصطناعي",
+                chatWelcome: "مرحباً! أنا باحثك الأكاديمي في TelcoLLM. قم بتحميل فصول كتبك، ومجلات الاتصالات، والمعايير في لوحة المصادر، ثم اسأل أو اطلب مني إنشاء مواد دراسية.",
+                thinkingText: "يقوم TelcoLLM بمعالجة السياق وتفسيره...",
+                browsePdf: "استعراض ملف PDF",
+                portalTitle: "بوابة مكتبة الاتصالات",
+                portalSub: "قم بتحميل أو تحديد مستند دراسي بصيغة PDF. سيتم تحميل الملف صفحة تلو الأخرى مباشرة هنا.",
+                enterApiKeyFirst: "يرجى إدخال مفتاح Gemini API أولاً!",
+                uploadPdfFirst: "يرجى تحميل مصدر PDF واحد على الأقل أولاً!",
+                generatingPrompt: "جاري إعداد رفيق الدراسة الذكي...",
+                generatingAudio: "جاري توليد الملخص الصوتي...",
+                unsupportedAudio: "توليد الصوت يتطلب إعدادات تحويل النص إلى كلام.",
+                audioReady: "الملخص الصوتي جاهز! تحقق من مشغل الصوت.",
+                copyText: "نسخ إلى الحافظة",
+                closeText: "تم",
+                copySuccess: "تم النسخ بنجاح!",
+                apiSaved: "تم حفظ مفتاح API بنجاح!",
+                thinkingChat: "جاري التحليل باستخدام نماذج الاتصالات المتقدمة...",
+                noDocsUploadedYet: "لم تقم بتحميل أي ملفات PDF بعد. يرجى سحب وإفلات أو اختيار الملفات في لوحة المصادر."
+            },
+            ur: {
+                appTagline: "ٹیلی کمیونیکیشن کے مطالعہ اور تحقیق کے لیے اے آئی اسسٹنٹ",
+                save: "محفوظ کریں",
+                sources: "ذرائع (Sources)",
+                uploadPDF: "پی ڈی ایف مطالعہ کا مواد اپ لوڈ کریں",
+                uploadStatus: "دستاویز لوڈ ہو رہی ہے...",
+                noSources: "ابھی تک کوئی تحقیقی پی ڈی ایف اپ لوڈ نہیں کی گئی۔",
+                howToUse: "TelcoLLM کا استعمال کیسے کریں",
+                step1: "حوالہ جاتی کاغذات، درسی کتب کے ابواب، سیٹلائٹ مینوئل، یا موبائل مواصلات کے معیارات اپ لوڈ کریں۔",
+                step2: "سب سے اوپر والے ہیڈر میں اپنی Gemini API کلید درج کریں۔",
+                step3: "مرکزی منظر میں فوری جائزہ لینے کے لیے فہرست میں سے کسی بھی فائل کا انتخاب کریں۔",
+                step4: "چیٹ سائڈ بار میں سوالات پوچھیں، یا خودکار مدد کے لیے مطالعہ کے اختیارات پر کلک کریں!",
+                noDocSelected: "کوئی دستاویز منتخب نہیں ہے",
+                studyActions: "مطالعہ کے اختیارات",
+                optAudio: "آڈیو گائیڈ",
+                optSlides: "سلائیڈز آؤٹ لائن",
+                optSummary: "خلاصہ",
+                optQuiz: "انٹرایکٹو کوئز",
+                optMindmap: "مائنڈ میپ",
+                optFlashcards: "فلیش کارڈز",
+                chatHeader: "اے آئی اسکالر ڈسکشن پینل",
+                chatWelcome: "سلام! میں آپ کا TelcoLLM اسکالر ہوں۔ اپنے درسی کتب کے ابواب اور ٹیلی کام کے جرائد کو اپ لوڈ کریں، اور سوالات پوچھیں۔",
+                thinkingText: "TelcoLLM ڈیٹا پر کام کر رہا ہے...",
+                browsePdf: "پی ڈی ایف فائل منتخب کریں",
+                portalTitle: "ٹیلی کمیونیکیشن لائبریری پورٹل",
+                portalSub: "کوئی بھی پی ڈی ایف دستاویز اپ لوڈ کریں۔ یہ پیج در پیج رینڈر ہو جائے گا۔",
+                enterApiKeyFirst: "براہ کرم پہلے اپنی Gemini API کی داخل کریں!",
+                uploadPdfFirst: "براہ کرم پہلے کم از کم ایک پی ڈی ایف فائل اپ لوڈ کریں!",
+                generatingPrompt: "مطالعہ کا مواد تیار کیا جا رہا ہے...",
+                generatingAudio: "آڈیو خلاصہ تیار کیا جا رہا ہے...",
+                unsupportedAudio: "آڈیو کی تیاری کے لیے آواز کے پیرامیٹرز درکار ہیں۔",
+                audioReady: "آڈیو خلاصہ تیار ہے! آڈیو پلیئر چیک کریں۔",
+                copyText: "کاپی کریں",
+                closeText: "مکمل",
+                copySuccess: "کامیابی سے کاپی ہو گیا!",
+                apiSaved: "API کی کامیابی سے محفوظ ہو گئی!",
+                thinkingChat: "ٹیلی کمیونیکیشن ماڈلز کے ساتھ تجزیہ جاری ہے...",
+                noDocsUploadedYet: "آپ نے ابھی تک کوئی دستاویز اپ لوڈ نہیں کی۔ براہ کرم سورسز پینل میں فائل اپ لوڈ کریں۔"
+            },
+            fr: {
+                appTagline: "Assistant IA pour l'étude et la recherche en Télécommunications",
+                save: "Enregistrer",
+                sources: "Sources",
+                uploadPDF: "Téléverser un document d'étude PDF",
+                uploadStatus: "Chargement du document...",
+                noSources: "Aucun document PDF d'étude importé.",
+                howToUse: "Comment utiliser TelcoLLM",
+                step1: "Téléversez des articles de référence, des chapitres de livres, des manuels de satellites ou des normes mobiles.",
+                step2: "Collez votre clé API Gemini dans l'en-tête supérieur.",
+                step3: "Sélectionnez n'importe quel fichier dans la liste pour le visualiser instantanément au centre.",
+                step4: "Posez des questions dans le chat, ou cliquez sur les actions pour générer des aides d'apprentissage !",
+                noDocSelected: "Aucun document sélectionné",
+                studyActions: "Actions d'étude",
+                optAudio: "Aperçu Audio",
+                optSlides: "Structure Slides",
+                optSummary: "Résumé",
+                optQuiz: "Quiz Interactif",
+                optMindmap: "Carte Mentale",
+                optFlashcards: "Cartes Mémoire",
+                chatHeader: "Panel d'échange IA Universitaire",
+                chatWelcome: "Bonjour ! Je suis votre tuteur expert TelcoLLM. Chargez vos PDFs de télécommunication (satellites, 5G, protocoles IP) pour démarrer notre session d'étude.",
+                thinkingText: "TelcoLLM traite les concepts...",
+                browsePdf: "Parcourir un fichier PDF",
+                portalTitle: "Portail d'Études en Télécom",
+                portalSub: "Téléversez ou sélectionnez un document d'étude. Le rendu vectoriel l'affichera page par page ici.",
+                enterApiKeyFirst: "Veuillez d'abord insérer votre clé API Gemini !",
+                uploadPdfFirst: "Veuillez d'abord téléverser au moins un document PDF !",
+                generatingPrompt: "Génération du compagnon d'étude en cours...",
+                generatingAudio: "Génération de l'aperçu audio en cours...",
+                unsupportedAudio: "La génération audio nécessite des paramètres de synthèse vocale.",
+                audioReady: "L'aperçu audio est prêt ! Vérifiez le lecteur.",
+                copyText: "Copier dans le presse-papiers",
+                closeText: "Fermer",
+                copySuccess: "Copié avec succès !",
+                apiSaved: "Clé API enregistrée avec succès !",
+                thinkingChat: "Analyse en cours via des modèles Télécom...",
+                noDocsUploadedYet: "Aucun document n'a encore été importé. Utilisez le panneau Sources."
+            },
+            es: {
+                appTagline: "Asistente de IA para el Estudio e Investigación de Telecomunicaciones",
+                save: "Guardar",
+                sources: "Fuentes",
+                uploadPDF: "Subir material de estudio PDF",
+                uploadStatus: "Cargando documento...",
+                noSources: "No hay PDFs de investigación subidos aún.",
+                howToUse: "Cómo usar TelcoLLM",
+                step1: "Suba artículos de referencia, capítulos de libros, manuales de satélites o estándares de telefonía móvil.",
+                step2: "Pegue su clave API de Gemini en la barra superior.",
+                step3: "Seleccione cualquier archivo de la lista para inspeccionarlo en el visualizador central.",
+                step4: "Haga preguntas en el chat lateral, o use las opciones de estudio para generar material de repaso.",
+                noDocSelected: "Ningún documento seleccionado",
+                studyActions: "Acciones de Estudio",
+                optAudio: "Guía de Audio",
+                optSlides: "Esquema de diapositivas",
+                optSummary: "Resumen",
+                optQuiz: "Cuestionario interactivo",
+                optMindmap: "Mapa mental",
+                optFlashcards: "Tarjetas de estudio",
+                chatHeader: "Panel de Discusión Científica con IA",
+                chatWelcome: "¡Hola! Soy tu tutor especializado de TelcoLLM. Sube tus documentos sobre redes IP, satélites o redes móviles y empecemos el análisis.",
+                thinkingText: "TelcoLLM está procesando la información...",
+                browsePdf: "Buscar archivo PDF",
+                portalTitle: "Portal de Biblioteca de Telecomunicaciones",
+                portalSub: "Suba o seleccione un PDF. El documento se cargará página a página de forma interactiva.",
+                enterApiKeyFirst: "Por favor, introduzca su clave API de Gemini primero.",
+                uploadPdfFirst: "Por favor, suba al menos un archivo PDF de origen.",
+                generatingPrompt: "Generando material educativo...",
+                generatingAudio: "Generando resumen de audio...",
+                unsupportedAudio: "La generación de audio requiere de síntesis de voz.",
+                audioReady: "¡El audio de repaso está listo! Reproduzca el reproductor.",
+                copyText: "Copiar al portapapeles",
+                closeText: "Hecho",
+                copySuccess: "¡Copiado al portapapeles con éxito!",
+                apiSaved: "¡Clave API guardada correctamente!",
+                thinkingChat: "Analizando con modelos de telecomunicación...",
+                noDocsUploadedYet: "Aún no ha subido ningún documento PDF. Arrastre, suelte o seleccione archivos en el panel izquierdo."
+            },
+            de: {
+                appTagline: "KI-Assistent für Telekommunikationsstudium und -forschung",
+                save: "Speichern",
+                sources: "Quellen",
+                uploadPDF: "PDF-Studienmaterial hochladen",
+                uploadStatus: "Dokument wird geladen...",
+                noSources: "Bisher keine Forschungs-PDFs hochgeladen.",
+                howToUse: "Verwendung von TelcoLLM",
+                step1: "Laden Sie Facharbeiten, Buchkapitel oder Mobilfunkstandards hoch.",
+                step2: "Fügen Sie Ihren Gemini-API-Schlüssel in der Kopfzeile ein.",
+                step3: "Wählen Sie ein Dokument aus, um es im zentralen Viewer anzuzeigen.",
+                step4: "Stellen Sie Fragen im Chat oder nutzen Sie automatische Lernhilfen!",
+                noDocSelected: "Kein Dokument ausgewählt",
+                studyActions: "Lernoptionen",
+                optAudio: "Audio-Übersicht",
+                optSlides: "Präsentation",
+                optSummary: "Zusammenfassung",
+                optQuiz: "Interaktives Quiz",
+                optMindmap: "Mind-Map",
+                optFlashcards: "Lernkarten",
+                chatHeader: "Wissenschaftlicher KI-Chat",
+                chatWelcome: "Hallo! Ich bin Ihr TelcoLLM-Lernassistent. Laden Sie PDFs zu Satelliten, 5G oder IP-Netzwerken hoch, um Fragen zu stellen.",
+                thinkingText: "TelcoLLM analysiert den Kontext...",
+                browsePdf: "PDF-Datei auswählen",
+                portalTitle: "Telekommunikations-Bibliothek",
+                portalSub: "Laden Sie ein PDF hoch, um es sofort seitenweise im hochauflösenden Viewer anzuzeigen.",
+                enterApiKeyFirst: "Bitte geben Sie zuerst Ihren Gemini-API-Schlüssel ein!",
+                uploadPdfFirst: "Bitte laden Sie zuerst mindestens ein PDF-Dokument hoch!",
+                generatingPrompt: "Material wird generiert...",
+                generatingAudio: "Audio-Zusammenfassung wird generiert...",
+                unsupportedAudio: "Sprachausgabe erfordert Synthese-Parameter.",
+                audioReady: "Audio-Übersicht ist bereit! Prüfen Sie den Audioplayer.",
+                copyText: "In Zwischenablage kopieren",
+                closeText: "Fertig",
+                copySuccess: "Erfolgreich kopiert!",
+                apiSaved: "API-Schlüssel erfolgreich gespeichert!",
+                thinkingChat: "Analyse mit Telekommunikationsmodellen...",
+                noDocsUploadedYet: "Es wurden noch keine PDF-Dokumente hochgeladen."
+            },
+            ja: {
+                appTagline: "電気通信分野の学習・研究向けAIアシスタント",
+                save: "保存",
+                sources: "ソース",
+                uploadPDF: "PDF学習教材のアップロード",
+                uploadStatus: "ドキュメントを読み込んでいます...",
+                noSources: "アップロードされた研究用PDFはまだありません。",
+                howToUse: "TelcoLLM の使い方",
+                step1: "論文、教科書の章、人工衛星のマニュアル、またはモバイル通信規格をアップロードします。",
+                step2: "ヘッダー上部に Gemini API キーを入力します。",
+                step3: "リストからファイルを選択し、中央のビューアで確認します。",
+                step4: "チャットで質問するか、スタディオプションで資料を自動生成します！",
+                noDocSelected: "ドキュメントが選択されていません",
+                studyActions: "学習サポート機能",
+                optAudio: "オーディオ解説",
+                optSlides: "スライド構成案",
+                optSummary: "要約・まとめ",
+                optQuiz: "復習クイズ",
+                optMindmap: "マインドマップ",
+                optFlashcards: "単語カード",
+                chatHeader: "AI学術対話パネル",
+                chatWelcome: "こんにちは！TelcoLLM学習アシスタントです。衛星通信、5G技術、IPネットワークなどのドキュメントをアップロードして、何でも質問してください。",
+                thinkingText: "TelcoLLMがコンテキストを解析中...",
+                browsePdf: "PDFファイルを選択",
+                portalTitle: "電気通信ライブラリポータル",
+                portalSub: "PDFをアップロードまたは選択すると、高度なベクターレンダリングで1ページずつ表示されます。",
+                enterApiKeyFirst: "最初に Gemini API キーを入力してください！",
+                uploadPdfFirst: "最初に少なくとも1つのPDFソースをアップロードしてください！",
+                generatingPrompt: "学習資料を生成中...",
+                generatingAudio: "音声ガイドを生成中...",
+                unsupportedAudio: "音声生成には音声合成パラメータが必要です。",
+                audioReady: "オーディオ解説の生成が完了しました！プレーヤーで確認してください。",
+                copyText: "クリップボードにコピー",
+                closeText: "完了",
+                copySuccess: "クリップボードにコピーしました！",
+                apiSaved: "APIキーが正常に保存されました！",
+                thinkingChat: "通信専門モデルによる解析を行っています...",
+                noDocsUploadedYet: "PDFドキュメントがまだアップロードされていません。"
+            },
+            zh: {
+                appTagline: "电信研究与学习智能化助手 (AI Assistant)",
+                save: "保存",
+                sources: "参考数据源",
+                uploadPDF: "上传PDF学习/科研资料",
+                uploadStatus: "正在加载文档...",
+                noSources: "尚未上传任何研究PDF文档。",
+                howToUse: "如何使用 TelcoLLM",
+                step1: "上传您的参考文献、教材章节、卫星通信手册或移动通信协议标准。",
+                step2: "在顶部栏中输入并保存您的 Gemini 接口密钥 (API Key)。",
+                step3: "在左侧列表中点击选择任意文档，即可在中心视窗流畅在线阅读。",
+                step4: "在右侧聊天窗口提问，或点击上方的学习辅助工具获取一键提炼服务！",
+                noDocSelected: "未选择任何文档",
+                studyActions: "学习辅助方案",
+                optAudio: "音频解读",
+                optSlides: "演示大纲",
+                optSummary: "内容摘要",
+                optQuiz: "互动测验",
+                optMindmap: "思维导图",
+                optFlashcards: "复习卡片",
+                chatHeader: "电信学术 AI 讨论板",
+                chatWelcome: "您好！我是您的 TelcoLLM 智能导师。请在左侧上传卫星通信、5G及IP网络方面的文献，我可以为您答疑、提炼大纲或设计测验。",
+                thinkingText: "TelcoLLM 正在分析语境内容...",
+                browsePdf: "浏览本地 PDF 文件",
+                portalTitle: "电信数字化图书馆",
+                portalSub: "上传或选择PDF，我们将通过先进的高清矢量技术在线加载和渲染文档。",
+                enterApiKeyFirst: "请先在上方输入您的 Gemini API 密钥！",
+                uploadPdfFirst: "请先上传至少一个 PDF 参考文献！",
+                generatingPrompt: "正在为您一键生成学习方案...",
+                generatingAudio: "正在合成并导出音频内容...",
+                unsupportedAudio: "音频生成需要支持的语音合成基础参数。",
+                audioReady: "音频导览生成完毕！您可以在下方播放器收听。",
+                copyText: "复制到剪贴板",
+                closeText: "完成",
+                copySuccess: "已成功复制到剪贴板！",
+                apiSaved: "API 密钥已保存！",
+                thinkingChat: "正在使用电信领域模型进行专业分析...",
+                noDocsUploadedYet: "您尚未上传任何 PDF 参考文献。请拖放或点击左侧面板上传。"
+            }
+        };
+
+        // Reactive Application State Management
+        let appLanguage = 'en';
+        let apiKeyValue = '';
+        let uploadedDocs = []; // Array of { name: string, textContent: string, pdfData: ArrayBuffer }
+        let currentActiveDocIndex = null;
+        
+        // PDF.js State
+        let pdfDoc = null;
+        let pageNum = 1;
+        let pageRendering = false;
+        let pageNumPending = null;
+        let scale = 1.3;
+        const canvas = document.getElementById('pdf-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Initial setup on window load
+        window.onload = function() {
+            // Check for saved API key in local environment if available
+            const savedKey = localStorage.getItem('telco_gemini_key');
+            if (savedKey) {
+                document.getElementById('gemini-key').value = savedKey;
+                apiKeyValue = savedKey;
+            }
+            // Populate/Render components
+            switchLanguage('en');
+        };
+
+        // Switch GUI translations
+        function switchLanguage(lang) {
+            appLanguage = lang;
+            const t = dictionary[lang];
+            
+            // Set App Language attribute
+            document.documentElement.lang = lang;
+
+            // DOM elements textual replacement
+            document.getElementById('app-tagline').innerText = t.appTagline;
+            document.getElementById('btn-save').innerText = t.save;
+            document.getElementById('title-sources').innerHTML = `<i class="fa-solid fa-folder-open text-accentNeonCyan"></i> ${t.sources}`;
+            document.getElementById('label-upload').innerText = t.uploadPDF;
+            document.getElementById('status-text').innerText = t.uploadStatus;
+            
+            // Guide labels
+            document.getElementById('title-guide').innerHTML = `<i class="fa-solid fa-circle-info"></i> ${t.howToUse}`;
+            const guideList = document.getElementById('guide-list');
+            guideList.innerHTML = `
+                <li class="flex items-start gap-2">
+                    <span class="text-accentNeonCyan font-bold">1.</span>
+                    <span>${t.step1}</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accentNeonCyan font-bold">2.</span>
+                    <span>${t.step2}</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accentNeonCyan font-bold">3.</span>
+                    <span>${t.step3}</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-accentNeonCyan font-bold">4.</span>
+                    <span>${t.step4}</span>
+                </li>
+            `;
+
+            // Center Viewer panel labels
+            if (currentActiveDocIndex === null) {
+                document.getElementById('pdf-view-title').innerText = t.noDocSelected;
+            }
+            document.getElementById('splash-title').innerText = t.portalTitle;
+            document.getElementById('splash-sub').innerText = t.portalSub;
+            document.getElementById('btn-browse').innerText = t.browsePdf;
+
+            // Study widgets labels
+            document.getElementById('title-study-options').innerHTML = `<i class="fa-solid fa-wand-magic-sparkles text-accentNeonPurple"></i> ${t.studyActions}`;
+            document.getElementById('opt-audio').innerText = t.optAudio;
+            document.getElementById('opt-slides').innerText = t.optSlides;
+            document.getElementById('opt-summary').innerText = t.optSummary;
+            document.getElementById('opt-quiz').innerText = t.optQuiz;
+            document.getElementById('opt-mindmap').innerText = t.optMindmap;
+            document.getElementById('opt-flashcards').innerText = t.optFlashcards;
+
+            // Chat labels
+            document.getElementById('title-chat-header').innerText = t.chatHeader;
+            document.getElementById('agent-thinking-text').innerText = t.thinkingText;
+            document.getElementById('chat-welcome-msg').innerHTML = t.chatWelcome;
+            
+            // Modal labels
+            document.getElementById('btn-copy').innerText = t.copyText;
+            document.getElementById('btn-close').innerText = t.closeText;
+
+            // Source list elements (including dynamic translation updates)
+            const msgNoSourcesEl = document.getElementById('msg-no-sources');
+            if (msgNoSourcesEl) {
+                msgNoSourcesEl.innerText = t.noSources;
+            }
+
+            // Re-render empty placeholder if empty
+            renderSourcesList();
+        }
+
+        // Save API Key Functionality
+        function saveApiKey() {
+            const key = document.getElementById('gemini-key').value.trim();
+            apiKeyValue = key;
+            localStorage.setItem('telco_gemini_key', key);
+            showNotification(dictionary[appLanguage].apiSaved, "fa-key", "accentNeonCyan");
+        }
+
+        // Trigger Click on hidden file element
+        function triggerFileInput() {
+            document.getElementById('pdf-file-input').click();
+        }
+
+        // Handle dropping zone highlights
+        const dropZone = document.getElementById('drop-zone');
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-accentNeonCyan', 'bg-accentNeonCyan/10');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('border-accentNeonCyan', 'bg-accentNeonCyan/10');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-accentNeonCyan', 'bg-accentNeonCyan/10');
+            if (e.dataTransfer.files.length > 0) {
+                processFiles(e.dataTransfer.files);
+            }
+        });
+        dropZone.addEventListener('click', () => {
+            triggerFileInput();
+        });
+
+        function handleFileSelect(event) {
+            if (event.target.files.length > 0) {
+                processFiles(event.target.files);
+            }
+        }
+
+        // Primary processing logic for chosen/dropped PDFs
+        async function processFiles(files) {
+            const t = dictionary[appLanguage];
+            const statusContainer = document.getElementById('upload-status-container');
+            const statusPercent = document.getElementById('status-percent');
+            const statusText = document.getElementById('status-text');
+
+            statusContainer.classList.remove('hidden');
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (file.type !== "application/pdf") {
+                    showNotification("Please upload valid PDF documents only.", "fa-triangle-exclamation", "accentNeonOrange");
+                    continue;
+                }
+
+                statusText.innerText = `${t.uploadStatus} (${file.name})`;
+                statusPercent.innerText = "20%";
+
+                try {
+                    const arrayBuffer = await readFileAsArrayBuffer(file);
+                    statusPercent.innerText = "50%";
+
+                    // Extract text contents using PDF.js Core text extraction to use as LLM Context
+                    const extractedText = await extractPdfText(arrayBuffer);
+                    statusPercent.innerText = "85%";
+
+                    uploadedDocs.push({
+                        name: file.name,
+                        textContent: extractedText,
+                        pdfData: arrayBuffer
+                    });
+
+                    statusPercent.innerText = "100%";
+                    showNotification(`"${file.name}" loaded successfully.`, "fa-file-circle-check", "accentNeonGreen");
+
+                } catch (error) {
+                    console.error("PDF Loading error: ", error);
+                    showNotification(`Error loading "${file.name}"`, "fa-circle-xmark", "accentNeonPink");
+                }
+            }
+
+            // Hide upload loading state spinner
+            setTimeout(() => {
+                statusContainer.classList.add('hidden');
+            }, 1000);
+
+            // Re-render source explorer
+            renderSourcesList();
+
+            // Auto-select the last uploaded file to preview
+            if (uploadedDocs.length > 0) {
+                selectActiveDoc(uploadedDocs.length - 1);
+            }
+        }
+
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = (err) => reject(err);
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // Heavy Lifting Text Parser through PDFJS API
+        async function extractPdfText(arrayBuffer) {
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            const pdf = await loadingTask.promise;
+            let fullText = "";
+            const maxPagesToExtract = Math.min(pdf.numPages, 45); // Protect token size by limiting text extract depth if excessive
+            
+            for (let i = 1; i <= maxPagesToExtract; i++) {
+                try {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(" ");
+                    fullText += `--- Page ${i} ---\n` + pageText + "\n";
+                } catch (e) {
+                    console.warn(`Could not extract page ${i}:`, e);
+                }
+            }
+            return fullText || "This document contains scanned imagery or empty page matrices.";
+        }
+
+        // Render Loaded PDFs into Left Sidebar list
+        function renderSourcesList() {
+            const container = document.getElementById('sources-list-container');
+            const noSourcesMsg = document.getElementById('no-sources-msg');
+            const countBadge = document.getElementById('sources-count');
+            
+            countBadge.innerText = uploadedDocs.length;
+
+            if (uploadedDocs.length === 0) {
+                noSourcesMsg.classList.remove('hidden');
+                container.innerHTML = "";
+                return;
+            }
+
+            noSourcesMsg.classList.add('hidden');
+            
+            // Rebuild items list securely without altering the separate #no-sources-msg element
+            container.innerHTML = "";
+            uploadedDocs.forEach((doc, idx) => {
+                const isActive = (idx === currentActiveDocIndex);
+                const activeClasses = isActive 
+                    ? "border-accentNeonCyan bg-accentNeonCyan/10 text-accentNeonCyan" 
+                    : "border-telcoBorder bg-telcoDarkBg text-slate-300 hover:border-slate-500";
+
+                const docItem = document.createElement('div');
+                docItem.className = `source-item p-3 rounded-xl border ${activeClasses} cursor-pointer transition flex items-center justify-between group`;
+                docItem.onclick = () => selectActiveDoc(idx);
+
+                docItem.innerHTML = `
+                    <div class="flex items-center space-x-2 overflow-hidden mr-2">
+                        <i class="fa-solid fa-file-pdf shrink-0 ${isActive ? 'text-accentNeonCyan' : 'text-slate-400 group-hover:text-accentNeonCyan'} transition"></i>
+                        <span class="text-xs font-medium truncate">${doc.name}</span>
+                    </div>
+                    <button onclick="deleteDoc(event, ${idx})" class="text-slate-500 hover:text-accentNeonPink p-1 transition opacity-0 group-hover:opacity-100">
+                        <i class="fa-solid fa-trash-can text-[11px]"></i>
+                    </button>
+                `;
+                container.appendChild(docItem);
+            });
+        }
+
+        // Remove PDF from state list
+        function deleteDoc(event, index) {
+            event.stopPropagation();
+            uploadedDocs.splice(index, 1);
+            if (currentActiveDocIndex === index) {
+                currentActiveDocIndex = null;
+                // Close canvas
+                document.getElementById('pdf-view-pane').classList.add('hidden');
+                document.getElementById('viewer-empty-splash').classList.remove('hidden');
+                document.getElementById('pdf-navigation').classList.add('hidden');
+                document.getElementById('pdf-view-title').innerText = dictionary[appLanguage].noDocSelected;
+            } else if (currentActiveDocIndex > index) {
+                currentActiveDocIndex--;
+            }
+            renderSourcesList();
+            showNotification("Document removed from sources.", "fa-trash", "accentNeonPink");
+        }
+
+        // Render active document to PDF view area
+        async function selectActiveDoc(index) {
+            currentActiveDocIndex = index;
+            const doc = uploadedDocs[index];
+            document.getElementById('pdf-view-title').innerText = doc.name;
+            renderSourcesList();
+
+            // Hide the splash welcome node and show canvas wrapper
+            document.getElementById('viewer-empty-splash').classList.add('hidden');
+            document.getElementById('pdf-view-pane').classList.remove('flex');
+            document.getElementById('pdf-view-pane').classList.remove('hidden');
+            document.getElementById('pdf-view-pane').classList.add('flex');
+            document.getElementById('pdf-navigation').classList.remove('hidden');
+
+            // Render Document onto PDF.js
+            try {
+                const loadingTask = pdfjsLib.getDocument({ data: doc.pdfData });
+                pdfDoc = await loadingTask.promise;
+                document.getElementById('page-count').innerText = pdfDoc.numPages;
+                
+                // Go to page 1
+                pageNum = 1;
+                renderPage(pageNum);
+
+            } catch (err) {
+                console.error("Renderer error: ", err);
+                showNotification("Could not render selected PDF visually.", "fa-circle-exclamation", "accentNeonOrange");
+            }
+        }
+
+        // Precise PDF rendering function
+        async function renderPage(num) {
+            pageRendering = true;
+            try {
+                const page = await pdfDoc.getPage(num);
+                const viewport = page.getViewport({ scale: scale });
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+                
+                const renderTask = page.render(renderContext);
+                await renderTask.promise;
+                pageRendering = false;
+                
+                document.getElementById('page-num').innerText = num;
+
+                if (pageNumPending !== null) {
+                    renderPage(pageNumPending);
+                    pageNumPending = null;
+                }
+            } catch (e) {
+                console.error("Rendering error at page: " + num, e);
+                pageRendering = false;
+            }
+        }
+
+        // Standard Navigation controls
+        function queueRenderPage(num) {
+            if (pageRendering) {
+                pageNumPending = num;
+            } else {
+                renderPage(num);
+            }
+        }
+
+        function prevPage() {
+            if (pdfDoc === null || pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+        }
+
+        function nextPage() {
+            if (pdfDoc === null || pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
+        }
+
+        // Interactive Zoom Utilities
+        function zoomIn() {
+            if (pdfDoc === null) return;
+            scale += 0.15;
+            renderPage(pageNum);
+        }
+
+        function zoomOut() {
+            if (pdfDoc === null || scale <= 0.6) return;
+            scale -= 0.15;
+            renderPage(pageNum);
+        }
+
+        // Custom in-app Alert UI system (Prevents browser alert locks)
+        function showNotification(text, iconClass = "fa-bell", colorClass = "accentNeonCyan") {
+            const toast = document.getElementById('message-toast');
+            const body = document.getElementById('toast-body');
+            const iconContainer = document.getElementById('toast-icon');
+
+            body.innerText = text;
+            iconContainer.className = `p-2 rounded-lg text-lg bg-${colorClass}/10 text-${colorClass}`;
+            iconContainer.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
+
+            // Style toast border
+            toast.style.borderColor = `var(--${colorClass}, #06b6d4)`;
+
+            toast.classList.remove('translate-y-12', 'opacity-0', 'pointer-events-none');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-12', 'opacity-0', 'pointer-events-none');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 4000);
+        }
+
+        // EXPONENTIAL BACKOFF FOR THE GEMINI CALLS
+        async function fetchWithRetry(url, options, maxRetries = 5) {
+            let delay = 1000; // start with 1 second
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) {
+                        return await response.json();
+                    }
+                    // If rate limited or standard server errors, initiate backoff
+                    if (response.status === 429 || response.status >= 500) {
+                        await new Promise(res => setTimeout(res, delay));
+                        delay *= 2; // exponential multiplying
+                        continue;
+                    }
+                    // Throw immediately on client-side configuration bugs (e.g. 400, 403)
+                    const errorDetails = await response.text();
+                    throw new Error(`HTTP Error ${response.status}: ${errorDetails}`);
+                } catch (error) {
+                    if (i === maxRetries - 1) {
+                        throw error; // Propagate up if final retry fails
+                    }
+                    await new Promise(res => setTimeout(res, delay));
+                    delay *= 2;
+                }
+            }
+            throw new Error("API call failed after max retries.");
+        }
+
+        // Generic Gemini Text Generation Payload constructor (UPDATED TO STABLE ENDPOINT)
+        async function runGeminiGeneration(userPrompt, systemInstructionText = "") {
+            const t = dictionary[appLanguage];
+            if (!apiKeyValue) {
+                showNotification(t.enterApiKeyFirst, "fa-key", "accentNeonOrange");
+                return null;
+            }
+
+            // Upgraded model endpoint path to stable gemini-2.5-flash
+            const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKeyValue}`;
+            
+            const payload = {
+                contents: [
+                    {
+                        parts: [
+                            { text: userPrompt }
+                        ]
+                    }
+                ]
+            };
+
+            if (systemInstructionText) {
+                payload.systemInstruction = {
+                    parts: [
+                        { text: systemInstructionText }
+                    ]
+                };
+            }
+
+            const requestOptions = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            };
+
+            try {
+                const data = await fetchWithRetry(modelUrl, requestOptions);
+                const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                return generatedText;
+            } catch (err) {
+                console.error("Gemini model execution error: ", err);
+                showNotification(`Model Error: ${err.message}`, "fa-circle-exclamation", "accentNeonPink");
+                return null;
+            }
+        }
+
+        // AUDIO GENERATOR VIA Gemini 2.5 TTS Model
+        async function runGeminiTTS(textToSpeak) {
+            const t = dictionary[appLanguage];
+            if (!apiKeyValue) {
+                showNotification(t.enterApiKeyFirst, "fa-key", "accentNeonOrange");
+                return;
+            }
+
+            // Prepare local UI state
+            const statusLabel = document.getElementById('audio-drawer-status');
+            const drawer = document.getElementById('audio-output-drawer');
+            const player = document.getElementById('audio-player');
+            const fallbackControls = document.getElementById('fallback-tts-controls');
+            
+            drawer.classList.remove('hidden');
+            player.classList.remove('hidden');
+            fallbackControls.classList.add('hidden');
+            statusLabel.innerHTML = `<i class="fa-solid fa-volume-high animate-pulse"></i> ${t.generatingAudio}`;
+
+            const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts?key=${apiKeyValue}`;
+            
+            const payload = {
+                contents: [
+                    {
+                        parts: [
+                            { text: `Say in a clear, academic tone: ${textToSpeak}` }
+                        ]
+                    }
+                ],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: {
+                                voiceName: "Kore"
+                            }
+                        }
+                    }
+                },
+                model: "gemini-2.5-flash-preview-tts"
+            };
+
+            const requestOptions = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            };
+
+            try {
+                const response = await fetch(ttsUrl, requestOptions);
+                if (!response.ok) {
+                    throw new Error(`TTS Error Status ${response.status}`);
+                }
+                const result = await response.json();
+                
+                // Extract PCM16 audio
+                const audioBase64 = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                if (!audioBase64) {
+                    throw new Error("No audio payload returned from TTS model.");
+                }
+
+                // Convert base64 PCM16 to a playable browser WAV blob
+                const audioBlob = pcm16ToWavBlob(audioBase64, 24000); 
+                const audioUrl = URL.createObjectURL(audioBlob);
+                
+                player.src = audioUrl;
+                player.play();
+
+                showNotification(t.audioReady, "fa-circle-play", "accentNeonGreen");
+
+            } catch (err) {
+                console.warn("TTS API fetch failed. Falling back to local Speech Synthesis engine...", err);
+                fallbackToWebSpeech(textToSpeak);
+            }
+        }
+
+        function fallbackToWebSpeech(textToSpeak) {
+            if (!('speechSynthesis' in window)) {
+                showNotification("Speech synthesis is not supported in this browser.", "fa-circle-exclamation", "accentNeonPink");
+                return;
+            }
+
+            // Cancel any ongoing local speech
+            window.speechSynthesis.cancel();
+
+            // Language translation to system synthesizer locales
+            const localeCodes = {
+                en: 'en-US',
+                hi: 'hi-IN',
+                ar: 'ar-SA',
+                ur: 'ur-PK',
+                fr: 'fr-FR',
+                es: 'es-ES',
+                de: 'de-DE',
+                ja: 'ja-JP',
+                zh: 'zh-CN'
+            };
+
+            const cleanText = textToSpeak.replace(/\[.*?\]/g, "").substring(0, 1500); // Standard clean up
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.lang = localeCodes[appLanguage] || 'en-US';
+
+            // Try to set high fidelity voice on available speech library
+            const voices = window.speechSynthesis.getVoices();
+            const matchingVoice = voices.find(v => v.lang.startsWith(utterance.lang) || v.lang.includes(utterance.lang.replace('-', '_')));
+            if (matchingVoice) {
+                utterance.voice = matchingVoice;
+            }
+
+            utterance.rate = 1.05; // Elegant scholarly pace
+            utterance.pitch = 1.0;
+
+            const drawer = document.getElementById('audio-output-drawer');
+            const player = document.getElementById('audio-player');
+            const fallbackControls = document.getElementById('fallback-tts-controls');
+            const statusLabel = document.getElementById('audio-drawer-status');
+
+            // Toggle HTML elements for Speech Synthesis
+            drawer.classList.remove('hidden');
+            player.classList.add('hidden'); // Hide empty/unresponsive audio file player
+            fallbackControls.classList.remove('hidden'); // Show localized control buttons
+            
+            statusLabel.innerHTML = `<i class="fa-solid fa-satellite animate-bounce text-accentNeonCyan"></i> Audio Overview via Web Speech Fallback...`;
+
+            utterance.onstart = () => {
+                showNotification("Local Speech Synthesis initiated.", "fa-headphones-simple", "accentNeonCyan");
+            };
+
+            utterance.onend = () => {
+                statusLabel.innerHTML = `<i class="fa-solid fa-circle-check text-accentNeonGreen"></i> Broadcast complete`;
+            };
+
+            utterance.onerror = (event) => {
+                console.error("Local TTS Error: ", event);
+                showNotification("Speech synthesis ran into a localized voice path limit.", "fa-triangle-exclamation", "accentNeonOrange");
+            };
+
+            // Start speaking
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Controller commands for fallback engine
+        function pauseSpeech() {
+            if (window.speechSynthesis) {
+                window.speechSynthesis.pause();
+                document.getElementById('audio-drawer-status').innerHTML = `<i class="fa-solid fa-circle-pause text-yellow-400"></i> Broadcast Paused`;
+            }
+        }
+
+        function resumeSpeech() {
+            if (window.speechSynthesis) {
+                window.speechSynthesis.resume();
+                document.getElementById('audio-drawer-status').innerHTML = `<i class="fa-solid fa-satellite animate-bounce text-accentNeonCyan"></i> Audio Overview via Web Speech Fallback...`;
+            }
+        }
+
+        function stopSpeech() {
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+                document.getElementById('audio-drawer-status').innerHTML = `<i class="fa-solid fa-circle-stop text-slate-400"></i> Broadcast Stopped`;
+            }
+        }
+
+        // Helper Utility: Convert PCM16 Base64 data returned from Gemini TTS to a functional browser WAV file
+        function pcm16ToWavBlob(base64Data, sampleRate = 24000) {
+            const binaryString = window.atob(base64Data);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const buffer = bytes.buffer;
+
+            // Generate WAV Header
+            const wavHeader = new ArrayBuffer(44);
+            const view = new DataView(wavHeader);
+
+            /* RIFF identifier */
+            writeString(view, 0, 'RIFF');
+            /* file length */
+            view.setUint32(4, 36 + buffer.byteLength, true);
+            /* RIFF type */
+            writeString(view, 8, 'WAVE');
+            /* format chunk identifier */
+            writeString(view, 12, 'fmt ');
+            /* format chunk length */
+            view.setUint32(16, 16, true);
+            /* sample format (raw PCM = 1) */
+            view.setUint16(20, 1, true);
+            /* channel count (mono = 1) */
+            view.setUint16(22, 1, true);
+            /* sample rate */
+            view.setUint32(24, sampleRate, true);
+            /* byte rate (sample rate * block align) */
+            view.setUint32(28, sampleRate * 2, true);
+            /* block align (channel count * bytes per sample) */
+            view.setUint16(32, 2, true);
+            /* bits per sample (16-bit PCM) */
+            view.setUint16(34, 16, true);
+            /* data chunk identifier */
+            writeString(view, 36, 'data');
+            /* data chunk length */
+            view.setUint32(40, buffer.byteLength, true);
+
+            // Combine Header + Raw PCM
+            const combinedBlob = new Blob([wavHeader, buffer], { type: 'audio/wav' });
+            return combinedBlob;
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        function closeAudioDrawer() {
+            document.getElementById('audio-output-drawer').classList.add('hidden');
+            const player = document.getElementById('audio-player');
+            player.pause();
+            player.src = "";
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
+        }
+
+        // Helper to collect text scope from all uploaded sources for LLM context injection
+        function collectAllDocumentsContext() {
+            if (uploadedDocs.length === 0) return "";
+            return uploadedDocs.map((doc, idx) => `[[DOCUMENT ${idx + 1}: ${doc.name}]]\n${doc.textContent}`).join("\n\n");
+        }
+
+        // Highly robust parser rendering both LaTeX equations (via KaTeX) and Clean Markdown (via Marked)
+        // Automatically cleanses raw LaTeX tag anomalies if the model outputs document syntax instead of pure math
+        function renderMathAndMarkdown(rawText, containerElement) {
+            if (!rawText) {
+                containerElement.innerHTML = "";
+                return;
+            }
+
+            // Clean common LaTeX list/text blocks if generated mistakenly by model
+            let cleaned = rawText
+                .replace(/\\begin\{itemize\}/gi, "")
+                .replace(/\\end\{itemize\}/gi, "")
+                .replace(/\\begin\{enumerate\}/gi, "")
+                .replace(/\\end\{enumerate\}/gi, "")
+                .replace(/\\item\s*/gi, "- ")
+                .replace(/\\textbf\{(.*?)\}/gi, "**$1**")
+                .replace(/\\textit\{(.*?)\}/gi, "*$1*")
+                .replace(/\\section\{(.*?)\}/gi, "## $1")
+                .replace(/\\subsection\{(.*?)\}/gi, "### $1")
+                .replace(/\\key\s*/gi, " - ");
+
+            // Parse Markdown using marked.js, fallback to original basic formatter if library fails
+            if (typeof marked !== 'undefined') {
+                containerElement.innerHTML = marked.parse(cleaned);
+            } else {
+                containerElement.innerHTML = formatMarkdownToHtml(cleaned);
+            }
+
+            // Run KaTeX Auto-Render strictly over this targeted DOM element
+            if (typeof renderMathInElement !== 'undefined') {
+                renderMathInElement(containerElement, {
+                    delimiters: [
+                        {left: "$$", right: "$$", display: true},
+                        {left: "$", right: "$", display: false},
+                        {left: "\\(", right: "\\)", display: false},
+                        {left: "\\[", right: "\\]", display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        // Trigger dynamic companion Study Actions
+        async function triggerStudyAction(actionType) {
+            const t = dictionary[appLanguage];
+            if (uploadedDocs.length === 0) {
+                showNotification(t.uploadPdfFirst, "fa-circle-exclamation", "accentNeonOrange");
+                return;
+            }
+
+            const docContext = collectAllDocumentsContext();
+            
+            // Show inline loader in Chat panel
+            const chatHeader = document.getElementById('title-chat-header');
+            const thinkingElement = document.getElementById('ai-thinking-element');
+            thinkingElement.classList.remove('hidden');
+
+            let actionPrompt = "";
+            let actionTitle = "";
+            let actionIcon = "";
+
+            switch (actionType) {
+                case 'audio':
+                    actionPrompt = `You are a professional scholarly telecommunication technology expert. Create a detailed podcast style spoken dialogue script reviewing the contents of the uploaded files. Summarize key lessons on satellite orbits, 5G architectures, or network protocols. The text should be highly engaging, educational and structured. Current Lang setting is ${appLanguage}. Output text directly.`;
+                    actionTitle = t.optAudio;
+                    actionIcon = "fa-headphones-simple text-accentNeonCyan";
+                    break;
+                case 'slides':
+                    actionPrompt = `Create a structured slide presentation outline based on the uploaded telecommunication reference files. Break down the content into Slide 1 (Title), Slide 2 (Introduction), Slide 3 (Technical Architecture), Slide 4 (Key Calculations/Formulas using math LaTeX $...$ format), Slide 5 (Challenges/Tradeoffs), Slide 6 (Conclusion). Use high-quality standard Markdown bullet points (- or *) and modern telecom nomenclature. Language: ${appLanguage}.`;
+                    actionTitle = t.optSlides;
+                    actionIcon = "fa-file-powerpoint text-accentNeonPurple";
+                    break;
+                case 'summary':
+                    actionPrompt = `Write a comprehensive, professional research summary of the provided telecommunication materials. Cover the primary communication technologies mentioned (e.g. Ka-band links, LTE EPC, Multiplexing), system variables, engineering trade-offs, and critical outcomes. Use standard Markdown for bullet points and headers. Use KaTeX/LaTeX ($...$ or $$...$$) ONLY for actual mathematical equations or technical formulas. Do NOT output document-level LaTeX environments like begin-itemize, begin-enumerate, begin-section or backslash-item. Language: ${appLanguage}.`;
+                    actionTitle = t.optSummary;
+                    actionIcon = "fa-list-check text-accentNeonPink";
+                    break;
+                case 'quiz':
+                    actionPrompt = `Generate a rigorous telecommunication engineering quiz based on the uploaded papers. Provide 4 challenging multiple-choice questions with answers and detailed explanations. Format the mathematical formulas in LaTeX $...$. Use standard Markdown bullet points for structural options. Language: ${appLanguage}.`;
+                    actionTitle = t.optQuiz;
+                    actionIcon = "fa-circle-question text-accentNeonOrange";
+                    break;
+                case 'mindmap':
+                    actionPrompt = `Develop a textual hierarchical Mind Map representing the telecommunication concepts in these source documents. Use structured nesting with emojis and lines (e.g., 📡, 🌐) to illustrate logical relations (e.g., Physical Layer -> Modulation -> QAM vs QPSK). Do not use backslash layout commands. Language: ${appLanguage}.`;
+                    actionTitle = t.optMindmap;
+                    actionIcon = "fa-network-wired text-accentNeonGreen";
+                    break;
+                case 'flashcards':
+                    actionPrompt = `Extract 5 essential telecommunication terms and acronyms from the uploaded PDFs (e.g. OFDM, Shannon's Capacity, LEO satellite orbital decay) and format them as interactive double-sided Flashcards with Front (Term/Question) and Back (Detailed definition, formula, or system properties in LaTeX $...$). Use clean Markdown formatting. Language: ${appLanguage}.`;
+                    actionTitle = t.optFlashcards;
+                    actionIcon = "fa-tags text-yellow-400";
+                    break;
+            }
+
+            const fullPrompt = `The following is the extracted text corpus from the user's uploaded Telecommunication study materials:\n\n${docContext}\n\nTask:\n${actionPrompt}`;
+            const sysPrompt = "You are a professional telecommunication professor specialized in satellite configurations, fiber optics, cellular technologies, and packet routing architectures. Provide deep, structured, and helpful answers. Format all scientific math equations using KaTeX delimiters ($...$ for inline or $$...$$ for display equations) but strictly write list layouts and headers in standard clean Markdown (*, -, #, ##). Do NOT use any LaTeX structural document controls like itemize, enumerate, textbf, section, or backslash-item.";
+
+            const resultText = await runGeminiGeneration(fullPrompt, sysPrompt);
+            thinkingElement.classList.add('hidden');
+
+            if (resultText) {
+                // Render modal
+                document.getElementById('modal-title').innerText = `${actionTitle} - Generated Review`;
+                document.getElementById('modal-icon-container').className = `p-2 rounded-lg bg-slate-900 ${actionIcon}`;
+                
+                const bodyContainer = document.getElementById('modal-body-content');
+                bodyContainer.innerHTML = ""; // Clear existing
+
+                // If the user requested an Audio Overview, trigger TTS while rendering math/markdown dynamically
+                if (actionType === 'audio') {
+                    const audioTip = document.createElement('div');
+                    audioTip.className = "p-3 bg-accentNeonCyan/10 border border-accentNeonCyan/30 rounded-lg text-xs mb-4 flex items-center justify-between";
+                    audioTip.innerHTML = `<span><i class="fa-solid fa-volume-high animate-bounce text-accentNeonCyan mr-1"></i> Gemini is generating a professional audio narration for you. Check player inside chat panel!</span>`;
+                    bodyContainer.appendChild(audioTip);
+
+                    const contentContainer = document.createElement('div');
+                    bodyContainer.appendChild(contentContainer);
+                    renderMathAndMarkdown(resultText, contentContainer);
+
+                    // Synthesize short verbal guide (limited characters)
+                    const speakableText = resultText.substring(0, 1000) + "...";
+                    runGeminiTTS(speakableText);
+                } else {
+                    renderMathAndMarkdown(resultText, bodyContainer);
+                }
+
+                toggleModal(true);
+            }
+        }
+
+        // Simplistic formatting helper to convert basic markdown response to elegant CSS nodes (Fallback if library is missing)
+        function formatMarkdownToHtml(mdText) {
+            let html = mdText
+                .replace(/### (.*)/g, '<h4 class="text-sm font-bold text-accentNeonCyan mt-4 mb-2">$1</h4>')
+                .replace(/## (.*)/g, '<h3 class="text-base font-bold text-accentNeonPurple mt-5 mb-3 border-b border-telcoBorder pb-1">$1</h3>')
+                .replace(/# (.*)/g, '<h2 class="text-lg font-display font-bold text-white mt-6 mb-4">$1</h2>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-accentNeonCyan font-semibold">$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em class="text-slate-300">$1</em>')
+                .replace(/`([^`]+)`/g, '<code class="bg-slate-900 text-pink-400 px-1.5 py-0.5 rounded text-xs font-mono">$1</code>')
+                // handle multiline codeblocks
+                .replace(/```([\s\S]*?)```/g, '<pre class="bg-slate-950 border border-telcoBorder p-3 rounded-lg text-xs font-mono text-emerald-400 overflow-x-auto my-3">$1</pre>')
+                .replace(/\n/g, '<br>');
+            return html;
+        }
+
+        // Toggle Study Modal Show/Hide
+        function toggleModal(show) {
+            const modal = document.getElementById('study-modal');
+            if (show) {
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        // Copy generated data payload
+        function copyModalContent() {
+            const content = document.getElementById('modal-body-content').innerText;
+            // Use fallback clipboard support as designated by canvas rules
+            const dummyTextArea = document.createElement("textarea");
+            document.body.appendChild(dummyTextArea);
+            dummyTextArea.value = content;
+            dummyTextArea.select();
+            document.execCommand("copy");
+            document.body.removeChild(dummyTextArea);
+            
+            showNotification(dictionary[appLanguage].copySuccess, "fa-copy", "accentNeonGreen");
+        }
+
+        // Handle Live Chat Bot Session
+        async function handleChatSubmit(e) {
+            e.preventDefault();
+            const inputEl = document.getElementById('chat-input');
+            const userMsgText = inputEl.value.trim();
+            if (!userMsgText) return;
+
+            // Clear input
+            inputEl.value = "";
+
+            // Render User Bubble
+            renderChatMessage(userMsgText, "user");
+
+            // Build Context Payload
+            const t = dictionary[appLanguage];
+            const hasDocs = uploadedDocs.length > 0;
+            const docContext = hasDocs ? collectAllDocumentsContext() : t.noDocsUploadedYet;
+
+            const finalPrompt = `
+User Question:
+${userMsgText}
+
+Context from Uploaded Study Materials:
+${docContext}
+
+Task: Respond to the User Question accurately using the context materials when relevant. Format all mathematics and engineering calculations beautifully in KaTeX/LaTeX format using $...$ for inline or $$...$$ for display formulas. Use standard Markdown (*, -, #, ##) for list structures and headings. Do NOT use backslash commands like textbf or backslash-item. Use local language: ${appLanguage}.
+            `;
+
+            const sysPrompt = "You are an expert Telecommunication Systems Engineering Professor. Answer technical queries using appropriate engineering formulas, concepts, and detailed breakdowns. Use clean Markdown elements for outlines and KaTeX ($...$) only for equations. Do NOT use LaTeX block environments.";
+
+            // Render Loader
+            const thinkingElement = document.getElementById('ai-thinking-element');
+            thinkingElement.classList.remove('hidden');
+
+            const answer = await runGeminiGeneration(finalPrompt, sysPrompt);
+            thinkingElement.classList.add('hidden');
+
+            if (answer) {
+                renderChatMessage(answer, "agent");
+            } else {
+                renderChatMessage("Sorry, I could not complete that analysis. Please verify your Gemini API key in the top right header.", "agent");
+            }
+        }
+
+        // Render message speech balloons into sidebar
+        function renderChatMessage(text, role) {
+            const chatBox = document.getElementById('chat-messages-box');
+            const wrapper = document.createElement('div');
+            wrapper.className = "flex items-start gap-3 mt-3";
+
+            const isAgent = (role === "agent");
+            const avatar = isAgent 
+                ? `<div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-accentNeonCyan to-accentNeonPurple flex items-center justify-center text-white shrink-0 shadow-lg"><i class="fa-solid fa-robot text-xs"></i></div>`
+                : `<div class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 shrink-0"><i class="fa-solid fa-user text-xs"></i></div>`;
+
+            const bubbleBg = isAgent 
+                ? "bg-telcoCardBg border border-telcoBorder" 
+                : "bg-slate-800/40 border border-slate-700/50";
+
+            wrapper.innerHTML = `
+                ${avatar}
+                <div class="${bubbleBg} rounded-xl p-3 max-w-[85%]">
+                    <div class="chat-message-content text-xs text-slate-200 leading-relaxed"></div>
+                    <span class="text-[9px] text-slate-500 mt-1 block">${isAgent ? 'TelcoLLM Agent' : 'Scholar'}</span>
+                </div>
+            `;
+
+            chatBox.appendChild(wrapper);
+            
+            // Render Math and Markdown onto the target element dynamically
+            const contentEl = wrapper.querySelector('.chat-message-content');
+            renderMathAndMarkdown(text, contentEl);
+
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function clearChat() {
+            const chatBox = document.getElementById('chat-messages-box');
+            chatBox.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-accentNeonCyan to-accentNeonPurple flex items-center justify-center text-white shrink-0 shadow-lg">
+                        <i class="fa-solid fa-robot text-xs"></i>
+                    </div>
+                    <div class="bg-telcoCardBg border border-telcoBorder rounded-xl p-3 max-w-[85%]">
+                        <div id="chat-welcome-msg" class="text-xs text-slate-200 leading-relaxed">
+                            ${dictionary[appLanguage].chatWelcome}
+                        </div>
+                        <span class="text-[9px] text-slate-500 mt-1 block">TelcoLLM Expert Agent</span>
+                    </div>
+                </div>
+            `;
+            showNotification("Chat thread cleared.", "fa-trash-can", "accentNeonPink");
+        }
+    </script>
+</body>
+</html>
