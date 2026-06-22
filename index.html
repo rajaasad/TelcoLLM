@@ -424,6 +424,9 @@
 
     <!-- INTERNAL APP JAVASCRIPT STATE LOGIC AND SYSTEM INTEGRATIONS -->
     <script>
+        // System wide key holder for preview runtime injection
+        const apiKey = "";
+
         // Multi-lingual Translation Matrix
         const dictionary = {
             en: {
@@ -551,7 +554,7 @@
                 uploadStatus: "دستاویز لوڈ ہو رہی ہے...",
                 noSources: "ابھی تک کوئی تحقیقی پی ڈی ایف اپ لوڈ نہیں کی گئی۔",
                 howToUse: "TelcoLLM کا استعمال کیسے کریں",
-                step1: "حوالہ جاتی کاغذات، درسی کتب کے ابواب، سیٹلائٹ مینوئل، یا موبائل مواصلات کے معیارات اپ لوڈ کریں۔",
+                step1: "حوالہ ذاتی کاغذات، درسی کتب کے ابواب، سیٹلائٹ مینوئل، یا موبائل مواصلات کے معیارات اپ لوڈ کریں۔",
                 step2: "سب سے اوپر والے ہیڈر میں اپنی Gemini API کلید درج کریں۔",
                 step3: "مرکزی منظر میں فوری جائزہ لینے کے لیے فہرست میں سے کسی بھی فائل کا انتخاب کریں۔",
                 step4: "چیٹ سائڈ بار میں سوالات پوچھیں، یا خودکار مدد کے لیے مطالعہ کے اختیارات پر کلک کریں!",
@@ -772,7 +775,7 @@
                 audioReady: "音频导览生成完毕！您可以在下方播放器收听。",
                 copyText: "复制到剪贴板",
                 closeText: "完成",
-                copySuccess: "已成功复制到剪贴板！",
+                copySuccess: "已成功复制 to 剪贴板！",
                 apiSaved: "API 密钥已保存！",
                 thinkingChat: "正在使用电信领域模型进行专业分析...",
                 noDocsUploadedYet: "您尚未上传任何 PDF 参考文献。请拖放或点击左侧面板上传。"
@@ -1150,6 +1153,41 @@
             renderPage(pageNum);
         }
 
+        // Display a custom modal explaining the AQ key quota lock error
+        function showAQQuotaErrorModal() {
+            document.getElementById('modal-title').innerText = "⚠️ Gemini AQ. Key Quota Bug Detected";
+            document.getElementById('modal-icon-container').className = "p-2 rounded-lg bg-red-950/50 text-red-400";
+            document.getElementById('modal-icon-container').innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-400"></i>`;
+            
+            const bodyContainer = document.getElementById('modal-body-content');
+            bodyContainer.innerHTML = `
+                <div class="space-y-4 text-xs">
+                    <p class="text-slate-300 leading-relaxed">
+                        Your key is in the secure <strong class="text-accentNeonCyan">Authentication Key (AQ.)</strong> format. However, there is a known bug in Google AI Studio where new keys are generated with a <strong>Free Tier quota limit of 0</strong>, returning instant <code>429 Resource Exhausted</code> errors.
+                    </p>
+                    <div class="p-3 bg-red-950/20 border border-red-900/40 rounded-lg text-slate-300">
+                        <strong class="text-red-400">Error:</strong> <code>RESOURCE_EXHAUSTED / Quota limit: 0</code> (The API refuses any requests from this key).
+                    </div>
+                    <h4 class="font-bold text-slate-200 uppercase tracking-wider text-[11px] border-b border-telcoBorder pb-1">How to Fix This:</h4>
+                    <ol class="list-decimal pl-5 space-y-2 text-slate-400">
+                        <li>
+                            <strong class="text-slate-200">Create a Standard Key via Google Cloud Console (Recommended):</strong> 
+                            Instead of Google AI Studio, go directly to the <a href="https://console.cloud.google.com/" target="_blank" class="text-accentNeonCyan hover:underline">Google Cloud Console</a>. Go to <strong>APIs & Services</strong> &gt; <strong>Credentials</strong> &gt; click <strong>Create Credentials</strong> &gt; choose <strong>API Key</strong>. This generates a standard key that bypasses the limit-0 bug.
+                        </li>
+                        <li>
+                            <strong class="text-slate-200">Trigger a Sync:</strong> 
+                            In Google AI Studio, locate your key, click "Add restrictions", and restrict it explicitly to "Gemini API" to force a backend database sync.
+                        </li>
+                        <li>
+                            <strong class="text-slate-200">Link Billing (Card):</strong> 
+                            Adding a payment method to your Cloud project resolves the limit immediately (usage is still free as long as you stay within the generous free thresholds).
+                        </li>
+                    </ol>
+                </div>
+            `;
+            toggleModal(true);
+        }
+
         function zoomOut() {
             if (pdfDoc === null || scale <= 0.6) return;
             scale -= 0.15;
@@ -1187,16 +1225,30 @@
                     if (response.ok) {
                         return await response.json();
                     }
-                    // If rate limited or standard server errors, initiate backoff
-                    if (response.status === 429 || response.status >= 500) {
+                    
+                    // Inspect errors for the Quota Limit 0 Bug
+                    if (response.status === 429) {
+                        const errorDetails = await response.text();
+                        if (errorDetails.includes("limit: 0") || errorDetails.includes("RESOURCE_EXHAUSTED") || errorDetails.includes("quota")) {
+                            throw new Error("QUOTA_LIMIT_0");
+                        }
                         await new Promise(res => setTimeout(res, delay));
                         delay *= 2; // exponential multiplying
                         continue;
                     }
-                    // Throw immediately on client-side configuration bugs (e.g. 400, 403)
+
+                    if (response.status >= 500) {
+                        await new Promise(res => setTimeout(res, delay));
+                        delay *= 2; // exponential multiplying
+                        continue;
+                    }
+                    // Throw immediately on client-side configuration bugs (e.g. 400, 403, 404)
                     const errorDetails = await response.text();
                     throw new Error(`HTTP Error ${response.status}: ${errorDetails}`);
                 } catch (error) {
+                    if (error.message === "QUOTA_LIMIT_0") {
+                        throw error;
+                    }
                     if (i === maxRetries - 1) {
                         throw error; // Propagate up if final retry fails
                     }
@@ -1207,16 +1259,19 @@
             throw new Error("API call failed after max retries.");
         }
 
-        // Generic Gemini Text Generation Payload constructor (UPDATED TO STABLE ENDPOINT)
+        // Generic Gemini Text Generation Payload constructor
         async function runGeminiGeneration(userPrompt, systemInstructionText = "") {
             const t = dictionary[appLanguage];
-            if (!apiKeyValue) {
+            const activeKey = apiKey || apiKeyValue;
+
+            if (!activeKey) {
                 showNotification(t.enterApiKeyFirst, "fa-key", "accentNeonOrange");
                 return null;
             }
 
-            // Upgraded model endpoint path to stable gemini-2.5-flash
-            const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKeyValue}`;
+            // Direct stable production model used to bypass deprecations
+            const modelName = "gemini-2.5-flash";
+            const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${activeKey}`;
             
             const payload = {
                 contents: [
@@ -1245,12 +1300,30 @@
             };
 
             try {
+                // Execute using reliable exponential backoff loader
                 const data = await fetchWithRetry(modelUrl, requestOptions);
                 const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
                 return generatedText;
             } catch (err) {
                 console.error("Gemini model execution error: ", err);
-                showNotification(`Model Error: ${err.message}`, "fa-circle-exclamation", "accentNeonPink");
+                
+                // Active regional model safety logic: Attempt immediate standard fallback to gemini-1.5-flash on 404
+                if (err.message.includes("404") || err.message.includes("NOT_FOUND")) {
+                    try {
+                        console.log("Attempting automatic fallback to gemini-1.5-flash...");
+                        const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeKey}`;
+                        const data = await fetchWithRetry(fallbackUrl, requestOptions);
+                        return data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    } catch (fallbackErr) {
+                        console.error("Gemini fallback exception: ", fallbackErr);
+                    }
+                }
+
+                if (err.message === "QUOTA_LIMIT_0") {
+                    showAQQuotaErrorModal();
+                } else {
+                    showNotification(`Model Error: ${err.message}`, "fa-circle-exclamation", "accentNeonPink");
+                }
                 return null;
             }
         }
@@ -1258,7 +1331,9 @@
         // AUDIO GENERATOR VIA Gemini 2.5 TTS Model
         async function runGeminiTTS(textToSpeak) {
             const t = dictionary[appLanguage];
-            if (!apiKeyValue) {
+            const activeKey = apiKey || apiKeyValue;
+
+            if (!activeKey) {
                 showNotification(t.enterApiKeyFirst, "fa-key", "accentNeonOrange");
                 return;
             }
@@ -1274,7 +1349,7 @@
             fallbackControls.classList.add('hidden');
             statusLabel.innerHTML = `<i class="fa-solid fa-volume-high animate-pulse"></i> ${t.generatingAudio}`;
 
-            const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts?key=${apiKeyValue}`;
+            const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts?key=${activeKey}`;
             
             const payload = {
                 contents: [
@@ -1406,6 +1481,7 @@
             }
         }
 
+        // Resume playback
         function resumeSpeech() {
             if (window.speechSynthesis) {
                 window.speechSynthesis.resume();
@@ -1413,6 +1489,7 @@
             }
         }
 
+        // Terminate speech
         function stopSpeech() {
             if (window.speechSynthesis) {
                 window.speechSynthesis.cancel();
